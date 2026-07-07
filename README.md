@@ -7,18 +7,48 @@
 ## 🗺️ How it Works & System Architecture
 
 ```mermaid
-graph LR
-    User([User English Prompt]) --> UI[Frontend Dashboard]
-    UI -->|1. Generate SQL| API[FastAPI Backend]
-    API -->|2. Get Schema & Query AI| Groq[Groq Llama-3.3]
-    API -->|3. Run SELECT query| DB[(SQLite Database)]
-    DB --> UI
+flowchart TD
+    subgraph Frontend [Client Browser GUI]
+        UI[Workspace Dashboard]
+        Explorer[Schema Explorer]
+        History[Session History]
+    end
+
+    subgraph Backend [FastAPI REST Engine]
+        API[Router Endpoints]
+        LLM[Groq LLM Client]
+        Guard[Security Filter: Read-Only Regex]
+        DB_Wrapper[SQLite Query Manager]
+    end
+
+    DB[(ecommerce.db)]
+
+    User([User English Prompt]) --> UI
+    UI -->|1. Prompt Input| API
+    API -->|2. Dynamic DB Schema Lookup| DB_Wrapper
+    DB_Wrapper -->|Pragma reflection| DB
+    API -->|3. Schema + Prompt context| LLM
+    LLM -->|4. Raw SELECT SQL| API
+    API -->|5. SQL Textarea| UI
+    
+    UI -->|6. Execute SQL| API
+    API -->|7. Parse SQL safety| Guard
+    Guard -->|8. Run SELECT only| DB_Wrapper
+    DB_Wrapper -->|9. Disk query| DB
+    DB_Wrapper -->|10. JSON table rows| UI
 ```
 
-### **How it Works (in 3 Simple Steps)**
-1. **Translate (NL → SQL)**: You describe the data you need in plain English. The backend combines your request with the live database structure and asks **Groq AI** to write the correct SQL query.
-2. **Review & Edit**: The generated SQL is loaded into an editor on your screen. You can tweak the SQL manually if needed. A security filter blocks any write operations (like `DELETE` or `DROP`).
-3. **Execute & Render**: The SQL runs against your local SQLite database. Results are shown instantly in a clean, paginated data table that you can export to **CSV**.
+### **System Data Flow Lifecycle**
+
+#### **Translation Pipeline (Steps 1–5)**
+1. **User Input**: User submits a plain English query in the dashboard.
+2. **Schema Reflection**: Backend dynamically retrieves tables and columns from SQLite using `PRAGMA table_info`.
+3. **AI Generation**: Schema metadata and prompt are compiled into a strict instruction set sent to Groq (`llama-3.3-70b-versatile`).
+4. **SQL Loading**: Backend extracts raw SELECT SQL from Groq's response and renders it in the editable text editor.
+
+#### **Execution Pipeline (Steps 6–10)**
+5. **Security Gate**: Before running the query, the backend executes a regex search. Any request containing write prefix mutations (`DELETE`, `UPDATE`, `INSERT`, `DROP`) is immediately rejected with a `403` alert.
+6. **Data Output**: Valid SELECT queries run against `ecommerce.db`. The SQLite manager fetches raw dataset lists, translates them to JSON key-value blocks, and returns them to the browser for paginated rendering and CSV export.
 
 ---
 
