@@ -7,7 +7,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from groq import Groq
 
-# Load env variables from .env if present
+# Load environment configurations from the local .env file
 load_dotenv()
 
 # Add current directory to path to resolve IDE/Linter import warnings
@@ -18,7 +18,8 @@ from database import execute_query, get_schema_info
 
 app = FastAPI(title="Natural Language to SQL Engine API")
 
-# Enable CORS for frontend development
+# Enable CORS (Cross-Origin Resource Sharing) so local frontend files
+# can make HTTP requests to this FastAPI backend without origin blocks.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,15 +28,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Pydantic schemas to validate and parse incoming request JSON body types.
 class GenerateRequest(BaseModel):
-    prompt: str
+    prompt: str  # The plain English request from the user
 
 class ExecuteRequest(BaseModel):
-    sql: str
+    sql: str     # The generated SQL query to run against SQLite
 
 @app.get("/api/schema")
 def get_schema():
-    """Returns the current database schema dynamically."""
+    """Retrieves the database layout dynamically to build the Schema Explorer tree in the UI."""
     try:
         schema = get_schema_info()
         if not schema:
@@ -46,14 +48,14 @@ def get_schema():
 
 @app.post("/api/generate")
 async def generate_sql(req: GenerateRequest, x_groq_api_key: Optional[str] = Header(None)):
-    """Translates a natural language prompt into SQL using Groq."""
+    """Handles prompt validation, formats dynamic database metadata, and calls Groq to translate NL to SQL."""
     prompt = req.prompt.strip()
     
-    # 1. Validation for empty or too short input
+    # Block empty or trivial inputs before sending to the LLM (saves API costs)
     if not prompt or len(prompt) < 3:
         raise HTTPException(status_code=400, detail="Please write a meaningful request describing the data you need.")
 
-    # 2. Get API key from header or environment variables
+    # Retrieve Groq Key from the HTTP Request Header or local Environment
     api_key = x_groq_api_key or os.getenv("GROQ_API_KEY")
     if not api_key:
         raise HTTPException(
@@ -61,7 +63,7 @@ async def generate_sql(req: GenerateRequest, x_groq_api_key: Optional[str] = Hea
             detail="Groq API Key is missing. Please provide it in the top settings bar or set GROQ_API_KEY in the environment."
         )
 
-    # 3. Dynamic schema context assembly
+    # Fetch dynamic columns and tables dynamically so the LLM remains context-aware
     try:
         schema = get_schema_info()
     except Exception as e:
@@ -70,12 +72,13 @@ async def generate_sql(req: GenerateRequest, x_groq_api_key: Optional[str] = Hea
     if not schema:
         raise HTTPException(status_code=500, detail="Database is not seeded. Run seed.py first.")
 
+    # Format the schema dictionary into a readable text block to feed into the prompt
     schema_desc = ""
     for table_name, columns in schema.items():
         cols_str = ", ".join([f"{col['name']} ({col['type']}{' PRIMARY KEY' if col['pk'] else ''})" for col in columns])
         schema_desc += f"- Table: {table_name}\n  Columns: {cols_str}\n"
 
-    # Construct the instruction for Groq
+    # Define system rules: enforces SELECT-only queries and raw SQL text delivery
     system_prompt = f"""You are a professional SQLite database assistant.
 Given the following database schema, translate the user's natural language request into a valid SQLite SQL query.
 
@@ -95,22 +98,22 @@ Guidelines:
     try:
         client = Groq(api_key=api_key)
         
-        # Call Groq API
+        # Request completion from Groq's high-speed versatile model
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             model="llama-3.3-70b-versatile",
-            temperature=0.1,
+            temperature=0.1,  # Low temperature makes output highly deterministic
         )
         
         sql = chat_completion.choices[0].message.content.strip()
         
-        # Clean up code blocks if returned
+        # Clean up markdown tags (e.g. ```sql ...) if the LLM outputted them anyway
         if sql.startswith("```"):
             sql = sql.replace("```sql", "").replace("```", "").strip()
-        # Remove trailing semicolon
+        # Strip trailing semicolon (standard SQLite runs fine without it, cleans up the UI)
         if sql.endswith(";"):
             sql = sql[:-1].strip()
             
@@ -119,7 +122,6 @@ Guidelines:
     except ImportError:
         raise HTTPException(status_code=500, detail="Groq library is not installed on the server.")
     except Exception as e:
-        # User-friendly Groq API error
         error_msg = str(e)
         if "API Key" in error_msg or "401" in error_msg:
             raise HTTPException(status_code=401, detail="Invalid Groq API Key. Please verify your key.")
@@ -127,13 +129,13 @@ Guidelines:
 
 @app.post("/api/execute")
 async def execute_sql(req: ExecuteRequest):
-    """Executes SQL query against SQLite database and returns rows."""
+    """Parses SQL queries, runs a regex security guard check, and executes them against SQLite."""
     sql = req.sql.strip()
     
     if not sql:
         raise HTTPException(status_code=400, detail="SQL query is empty.")
         
-    # Check for mutations
+    # Security Rule: Block any write operations using regex boundaries
     forbidden_pattern = r"\b(insert|update|delete|drop|alter|create|replace|truncate|grant|revoke|vacuum|pragma)\b"
     if re.search(forbidden_pattern, sql, re.IGNORECASE):
          raise HTTPException(
@@ -142,6 +144,7 @@ async def execute_sql(req: ExecuteRequest):
          )
          
     try:
+        # Run query and collect results (dictionaries of rows and columns)
         results = execute_query(sql)
         return results
     except ValueError as val_err:
@@ -149,9 +152,8 @@ async def execute_sql(req: ExecuteRequest):
     except FileNotFoundError as fnf_err:
         raise HTTPException(status_code=500, detail=str(fnf_err))
     except Exception as e:
-        # SQLite error caught and wrapped as human-readable error
+        # Intercept database errors and translate them into human-readable warnings
         err_msg = str(e)
-        # Simplify common SQLite errors
         if "no such table" in err_msg.lower():
             table_name = re.findall(r"no such table: (\w+)", err_msg, re.IGNORECASE)
             tbl = f" '{table_name[0]}'" if table_name else ""
@@ -165,8 +167,10 @@ async def execute_sql(req: ExecuteRequest):
             
         raise HTTPException(status_code=400, detail=friendly_detail)
 
-# Mount frontend static files at the root
+# Mount the static frontend directory onto the root path.
+# This serves index.html directly over HTTP on the same port (8000), avoiding browser CORS blocks.
 from fastapi.staticfiles import StaticFiles
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
 
