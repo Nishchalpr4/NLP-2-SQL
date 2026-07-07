@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
+from groq import Groq
 
 # Load env variables from .env if present
 load_dotenv()
@@ -92,7 +93,6 @@ Guidelines:
 """
 
     try:
-        from groq import Groq
         client = Groq(api_key=api_key)
         
         # Call Groq API
