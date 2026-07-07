@@ -4,25 +4,21 @@
 
 ---
 
-## 🗺️ System Architecture & Data Flow
+## 🗺️ How it Works & System Architecture
 
 ```mermaid
-graph TD
-    User([User Prompt]) -->|1. Plain English| Client[Browser GUI dashboard]
-    Client -->|2. POST /api/generate| API[FastAPI REST Engine]
-    API -->|3. Reflect Schema| DB[(SQLite Database)]
-    DB -->|4. PRAGMA Metadata| API
-    API -->|5. Schema + Prompt| Groq[Groq Llama-3.3-70B API]
-    Groq -->|6. Raw SELECT SQL| API
-    API -->|7. SQL String| Client
-    Client -->|8. User edits & clicks Run| Exec[POST /api/execute]
-    Exec -->|9. Mutation Regex Check| Guard{Safe SELECT?}
-    Guard -->|No: Block| Err[403 Forbidden Alert]
-    Guard -->|Yes: Run| DB
-    DB -->|10. Dataset Rows| Exec
-    Exec -->|11. JSON Data Table| Client
-    Client -->|12. Render Page| UI[Paginated Table + CSV + History]
+graph LR
+    User([User English Prompt]) --> UI[Frontend Dashboard]
+    UI -->|1. Generate SQL| API[FastAPI Backend]
+    API -->|2. Get Schema & Query AI| Groq[Groq Llama-3.3]
+    API -->|3. Run SELECT query| DB[(SQLite Database)]
+    DB --> UI
 ```
+
+### **How it Works (in 3 Simple Steps)**
+1. **Translate (NL → SQL)**: You describe the data you need in plain English. The backend combines your request with the live database structure and asks **Groq AI** to write the correct SQL query.
+2. **Review & Edit**: The generated SQL is loaded into an editor on your screen. You can tweak the SQL manually if needed. A security filter blocks any write operations (like `DELETE` or `DROP`).
+3. **Execute & Render**: The SQL runs against your local SQLite database. Results are shown instantly in a clean, paginated data table that you can export to **CSV**.
 
 ---
 
