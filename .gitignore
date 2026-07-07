@@ -1,0 +1,17 @@
+# Environment variables
+.env
+backend/.env
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# SQLite Database file
+ecommerce.db
+
+# IDE configuration files
+.vscode/
+.idea/
+.gemini/

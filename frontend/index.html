@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NL-SQL Engine — Natural Language to SQL</title>
+    <!-- Google Fonts: Outfit for titles, Inter for UI text, JetBrains Mono for SQL code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for clean vector icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="logo">
+            <i class="fa-solid fa-brain-circuit logo-icon"></i>
+            <h1>TalkToSQL <span>Engine</span></h1>
+        </div>
+        <div class="api-settings">
+            <div class="input-wrapper">
+                <i class="fa-solid fa-key input-icon"></i>
+                <input type="password" id="groq-key-input" placeholder="Enter Groq API Key..." />
+                <button id="save-key-btn" title="Save API Key to Session"><i class="fa-solid fa-circle-check"></i></button>
+            </div>
+            <div id="connection-badge" class="badge badge-disconnected">
+                <span class="dot"></span> <span class="label">Disconnected</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="app-workspace">
+        <!-- Left Sidebar: Schema & History -->
+        <aside class="workspace-sidebar">
+            <!-- Schema Explorer Panel -->
+            <div class="sidebar-panel">
+                <div class="panel-header">
+                    <h3><i class="fa-solid fa-database"></i> Schema Explorer</h3>
+                    <button id="refresh-schema-btn" title="Refresh Schema"><i class="fa-solid fa-arrows-rotate"></i></button>
+                </div>
+                <div class="panel-content" id="schema-explorer-content">
+                    <div class="loading-state">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading schema...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Query History Panel -->
+            <div class="sidebar-panel history-panel">
+                <div class="panel-header">
+                    <h3><i class="fa-solid fa-history"></i> Query History</h3>
+                    <button id="clear-history-btn" title="Clear History"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+                <div class="panel-content" id="query-history-content">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <p>No queries executed yet in this session.</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right / Center Main Section -->
+        <section class="workspace-main">
+            <!-- Part 1: Natural Language Input -->
+            <div class="card query-card">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-keyboard"></i> Ask Your Database</h2>
+                    <span class="step-num">Step 1</span>
+                </div>
+                <div class="card-content">
+                    <div class="textarea-container">
+                        <textarea id="prompt-input" placeholder="Describe the data you want to retrieve in plain English (e.g. 'Show the top 5 customers by spend')..."></textarea>
+                    </div>
+                    
+                    <!-- Predefined Examples -->
+                    <div class="example-prompts">
+                        <span class="example-label">Examples:</span>
+                        <div class="chips-container">
+                            <span class="chip" data-prompt="List all users">List Users</span>
+                            <span class="chip" data-prompt="Show all products out of stock">Out of Stock</span>
+                            <span class="chip" data-prompt="Show all orders placed in the last 30 days">Recent Orders</span>
+                            <span class="chip" data-prompt="Find the top 5 customers by total spend">Top 5 Spend</span>
+                        </div>
+                    </div>
+                    
+                    <div class="action-bar">
+                        <button id="generate-sql-btn" class="btn btn-primary">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate SQL
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Part 2: SQL Generation & Code Editor -->
+            <div class="card sql-card hidden" id="sql-card-wrapper">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-code"></i> Generated SQL Query</h2>
+                    <span class="step-num">Step 2</span>
+                </div>
+                <div class="card-content">
+                    <p class="section-instruction"><i class="fa-solid fa-pen-to-square"></i> You can edit this SQL query manually before executing it.</p>
+                    <div class="code-editor-container">
+                        <textarea id="sql-editor" class="code-font" spellcheck="false"></textarea>
+                    </div>
+                    <div class="action-bar">
+                        <button id="execute-sql-btn" class="btn btn-success">
+                            <i class="fa-solid fa-play"></i> Run Query
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Part 4: Query Results Table -->
+            <div class="card results-card hidden" id="results-card-wrapper">
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-table-list"></i> Query Results</h2>
+                    <div class="results-actions">
+                        <span id="row-count-indicator" class="row-indicator">Showing 0 results</span>
+                        <button id="export-csv-btn" class="btn btn-secondary btn-sm" title="Export as CSV">
+                            <i class="fa-solid fa-download"></i> CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <!-- Table scroll container -->
+                    <div class="table-container">
+                        <table id="results-table">
+                            <thead id="results-thead"></thead>
+                            <tbody id="results-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div class="pagination-container" id="pagination-controls">
+                        <button id="prev-page-btn" class="btn btn-icon" disabled><i class="fa-solid fa-angle-left"></i></button>
+                        <span id="page-num-indicator" class="page-indicator">Page 1 of 1</span>
+                        <button id="next-page-btn" class="btn btn-icon" disabled><i class="fa-solid fa-angle-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Alerts & Feedback messages -->
+            <div id="alert-container" class="alert-container hidden"></div>
+        </section>
+    </main>
+
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>
