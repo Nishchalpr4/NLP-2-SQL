@@ -1,3 +1,8 @@
+# =====================================================================
+# BLOCK 1: IMPORTS & ENVIRONMENT SETUP
+# Why it exists: Imports necessary frameworks (FastAPI, Pydantic, Groq)
+# and configures system paths and environment keys from the .env file.
+# =====================================================================
 import os
 import re
 from fastapi import FastAPI, HTTPException, Header, Request
@@ -18,8 +23,12 @@ from database import execute_query, get_schema_info
 
 app = FastAPI(title="Natural Language to SQL Engine API")
 
-# Enable CORS (Cross-Origin Resource Sharing) so local frontend files
-# can make HTTP requests to this FastAPI backend without origin blocks.
+
+# =====================================================================
+# BLOCK 2: CORS MIDDLEWARE CONFIGURATION
+# Why it exists: Browser security blocks cross-origin requests by default.
+# This opens the server to accept API calls from any frontend client port.
+# =====================================================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,13 +37,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic schemas to validate and parse incoming request JSON body types.
+
+# =====================================================================
+# BLOCK 3: PYDANTIC SCHEMAS (REQUEST BODY VALIDATORS)
+# Why it exists: Defines strict formats for incoming request payloads.
+# Stops invalid or empty requests early before running server logic.
+# =====================================================================
 class GenerateRequest(BaseModel):
     prompt: str  # The plain English request from the user
 
 class ExecuteRequest(BaseModel):
     sql: str     # The generated SQL query to run against SQLite
 
+
+# =====================================================================
+# BLOCK 4: DATABASE SCHEMA ENDPOINT (GET /api/schema)
+# Why it exists: Dynamically reads active SQLite tables and columns.
+# Renders the live interactive schema tree inside the frontend sidebar.
+# =====================================================================
 @app.get("/api/schema")
 def get_schema():
     """Retrieves the database layout dynamically to build the Schema Explorer tree in the UI."""
@@ -46,6 +66,12 @@ def get_schema():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# =====================================================================
+# BLOCK 5: SQL GENERATION PIPELINE (POST /api/generate)
+# Why it exists: Receives user prompt, formats active database context,
+# and calls the Groq AI API to translate English instructions to raw SQL.
+# =====================================================================
 @app.post("/api/generate")
 async def generate_sql(req: GenerateRequest, x_groq_api_key: Optional[str] = Header(None)):
     """Handles prompt validation, formats dynamic database metadata, and calls Groq to translate NL to SQL."""
@@ -127,6 +153,12 @@ Guidelines:
             raise HTTPException(status_code=401, detail="Invalid Groq API Key. Please verify your key.")
         raise HTTPException(status_code=500, detail=f"Groq API Error: {error_msg}")
 
+
+# =====================================================================
+# BLOCK 6: SQL EXECUTION & SECURITY GATEWAY (POST /api/execute)
+# Why it exists: Enforces read-only safety filters on incoming queries,
+# executes them, and translates SQLite errors to user-friendly warnings.
+# =====================================================================
 @app.post("/api/execute")
 async def execute_sql(req: ExecuteRequest):
     """Parses SQL queries, runs a regex security guard check, and executes them against SQLite."""
@@ -167,10 +199,15 @@ async def execute_sql(req: ExecuteRequest):
             
         raise HTTPException(status_code=400, detail=friendly_detail)
 
-# Mount the static frontend directory onto the root path.
-# This serves index.html directly over HTTP on the same port (8000), avoiding browser CORS blocks.
+
+# =====================================================================
+# BLOCK 7: STATIC FRONTEND FILE HOSTING
+# Why it exists: Hosts the front-end dashboard files dynamically on the
+# same server port (8000), preventing local browser file protocol errors.
+# =====================================================================
 from fastapi.staticfiles import StaticFiles
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
 
 
