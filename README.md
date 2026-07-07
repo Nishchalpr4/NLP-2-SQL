@@ -22,14 +22,16 @@ flowchart TD
 ### **System Data Flow Lifecycle**
 
 #### **Translation Pipeline (Steps 1–5)**
-1. **User Input**: User submits a plain English query in the dashboard.
-2. **Schema Reflection**: Backend dynamically retrieves tables and columns from SQLite using `PRAGMA table_info`.
-3. **AI Generation**: Schema metadata and prompt are compiled into a strict instruction set sent to Groq (`llama-3.3-70b-versatile`).
-4. **SQL Loading**: Backend extracts raw SELECT SQL from Groq's response and renders it in the editable text editor.
+1. **Send Prompt**: User writes an English query and clicks Generate.
+2. **Schema Lookup**: Server queries dynamic table structures via SQLite catalog.
+3. **Context Assemble**: Combines prompt and schema into an LLM instruction.
+4. **AI Translation**: Groq API returns clean SQL string.
+5. **Display SQL**: Dashboard displays the SQL inside the editable code editor.
 
-#### **Execution Pipeline (Steps 6–10)**
-5. **Security Gate**: Before running the query, the backend executes a regex search. Any request containing write prefix mutations (`DELETE`, `UPDATE`, `INSERT`, `DROP`) is immediately rejected with a `403` alert.
-6. **Data Output**: Valid SELECT queries run against `ecommerce.db`. The SQLite manager fetches raw dataset lists, translates them to JSON key-value blocks, and returns them to the browser for paginated rendering and CSV export.
+#### **Execution Pipeline (Steps 6–8)**
+6. **Run Request**: User triggers query run, prompting the read-only regex safety check.
+7. **SELECT Execution**: Clean query runs against `ecommerce.db`.
+8. **Rows Visualization**: Table renders paginated results and prompts CSV export.
 
 ---
 
@@ -103,7 +105,10 @@ Open: **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
 
 ---
 
+## ⚡ Query Speed & Caching Blueprint (Bonus Marks)
+
 * **LRU Results Cache** (Hits in **<1ms**): Maps standard SQL hashes to their execution row outputs. Repeated identical queries bypass database reads entirely.
 * **Semantic Prompt Cache**: Computes prompt vector embeddings. If a new prompt matches an existing query (e.g., *"list all users"* vs *"show all customers"*), it reuses the generated SQL, bypassing the LLM.
 * **Trade-off (Staleness vs Memory)**: Stale data is resolved with a **30-second TTL** (Time-to-Live). Memory bloat is prevented by limiting the cache to **200 entries**.
+
 
