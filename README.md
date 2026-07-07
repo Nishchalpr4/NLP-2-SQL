@@ -15,7 +15,7 @@ flowchart TD
     Groq -->|4. Translated SQL| API
     API -->|5. Display SQL| UI
     UI -->|6. Run SQL| API
-    API -->|7. Exec SELECT (Security Check)| DB
+    API -->|7. Exec SELECT - Security Check| DB
     DB -->|8. Return Rows| UI
 ```
 
