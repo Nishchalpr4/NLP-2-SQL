@@ -8,34 +8,15 @@
 
 ```mermaid
 flowchart TD
-    subgraph Frontend [Client Browser GUI]
-        UI[Workspace Dashboard]
-        Explorer[Schema Explorer]
-        History[Session History]
-    end
-
-    subgraph Backend [FastAPI REST Engine]
-        API[Router Endpoints]
-        LLM[Groq LLM Client]
-        Guard[Security Filter: Read-Only Regex]
-        DB_Wrapper[SQLite Query Manager]
-    end
-
-    DB[(ecommerce.db)]
-
-    User([User English Prompt]) --> UI
-    UI -->|1. Prompt Input| API
-    API -->|2. Dynamic DB Schema Lookup| DB_Wrapper
-    DB_Wrapper -->|Pragma reflection| DB
-    API -->|3. Schema + Prompt context| LLM
-    LLM -->|4. Raw SELECT SQL| API
-    API -->|5. SQL Textarea| UI
-    
-    UI -->|6. Execute SQL| API
-    API -->|7. Parse SQL safety| Guard
-    Guard -->|8. Run SELECT only| DB_Wrapper
-    DB_Wrapper -->|9. Disk query| DB
-    DB_Wrapper -->|10. JSON table rows| UI
+    User([User English Prompt]) --> UI[Dashboard UI]
+    UI -->|1. Send Prompt| API[FastAPI Server]
+    API <-->|2. Dynamic Schema Lookup| DB[(SQLite Database)]
+    API -->|3. Prompt + Schema| Groq[Groq Llama-3.3]
+    Groq -->|4. Translated SQL| API
+    API -->|5. Display SQL| UI
+    UI -->|6. Run SQL| API
+    API -->|7. Exec SELECT (Security Check)| DB
+    DB -->|8. Return Rows| UI
 ```
 
 ### **System Data Flow Lifecycle**
