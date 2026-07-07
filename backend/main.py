@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 # Load env variables from .env if present
 load_dotenv()
 
+# Add current directory to path to resolve IDE/Linter import warnings
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from database import execute_query, get_schema_info
 
 app = FastAPI(title="Natural Language to SQL Engine API")
