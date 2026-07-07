@@ -28,28 +28,24 @@ graph TD
 
 ## 🚀 How to Run Locally
 
-### 1. **Setup Database & Seeding**
-Initialize the database structure and populate it with **170+ rows of realistic transaction data**:
+### 1. Seed Database
 ```powershell
 python backend/seed.py
 ```
-*This instantly generates `ecommerce.db` in your root folder.*
 
-### 2. **Install Server Dependencies**
-Install FastAPI, Uvicorn, Groq, and environment helper modules:
+### 2. Install Packages
 ```powershell
 pip install -r backend/requirements.txt
 ```
 
-### 3. **Launch the FastAPI Server**
-Start the application server:
+### 3. Start Server
+Run from the `backend/` folder:
 ```powershell
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --reload
 ```
 
-### 4. **Access the Dashboard**
-Open your web browser and navigate directly to:
-👉 **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
+### 4. Open App
+Open: **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
 
 ---
 
