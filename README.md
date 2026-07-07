@@ -100,13 +100,7 @@ Open your web browser and navigate directly to:
 
 ---
 
-## ⚡ Query Speed & Caching Blueprint (Bonus Marks)
+* **LRU Results Cache** (Hits in **<1ms**): Maps standard SQL hashes to their execution row outputs. Repeated identical queries bypass database reads entirely.
+* **Semantic Prompt Cache**: Computes prompt vector embeddings. If a new prompt matches an existing query (e.g., *"list all users"* vs *"show all customers"*), it reuses the generated SQL, bypassing the LLM.
+* **Trade-off (Staleness vs Memory)**: Stale data is resolved with a **30-second TTL** (Time-to-Live). Memory bloat is prevented by limiting the cache to **200 entries**.
 
-### **The Mechanism**
-To achieve optimal response times, we propose a two-tiered caching system:
-1. **LRU Results Cache**: Map standard SQL hashes to their execution row outputs using a standard Least Recently Used (`functools.lru_cache` or Redis) schema. Repeated identical queries hit the cache in **<1ms**.
-2. **Semantic Vector Cache**: Generate and store vector embeddings for user prompts. If a new prompt achieves a high cosine similarity (>0.92) with a previous query (e.g., *"list all users"* vs *"show all customers"*), the system bypasses LLM inference entirely and re-runs the cached SQL query.
-
-### **The Trade-offs**
-* **Staleness**: Cache outputs can quickly drift if records are modified. We implement a short Time-to-Live (TTL) of **30 seconds** and automatic invalidation upon database write alerts.
-* **RAM Footprint**: Storing large tables in memory raises memory costs. We limit cache sizing parameters (e.g., maximum of **200 entries**) and apply eviction rules.
