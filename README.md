@@ -73,28 +73,19 @@ Open your web browser and navigate directly to:
 └────────────────────────────────────────────────────────┘
 ```
 
-### 📦 **Phase 1: Database Foundation**
-* **Schema Blueprint**: Designed a robust relational database with keys and indices:
-  * `users`: ID, Name, Email, City, Creation date.
-  * `products`: ID, Name, Category, Price, Stock inventory level.
-  * `orders`: ID, User_ID (FK), Product_ID (FK), Order_date, Quantity, Total_Amount.
-* **Deterministic Seeder**: Created `seed.py` to insert **60 users**, **60 products**, and **80 transactional orders** with logical constraints (e.g. `total_amount = price * quantity`).
+* **Phase 1: Database Setup & Seeding**
+  * Creates relational schema for `users`, `products`, and `orders`.
+  * Seeds **170+ rows** of mock transactional data via `seed.py`.
+* **Phase 2: FastAPI Backend Engine**
+  * Maps DB metadata to LLM context dynamically.
+  * Translates prompts to SQL in real-time using Groq (`llama-3.3-70b-versatile`).
+* **Phase 3: Unified Front-End UI**
+  * Multi-panel glassmorphism design with responsive grid layouts.
+  * Features live schema explorer (double-click to insert) and session query history.
+* **Phase 4: Security Filters & CSV Export**
+  * Intercepts and blocks write/mutation operations (`DELETE`, `DROP`, `UPDATE`).
+  * Converts database exceptions to user hints; features instant CSV data export.
 
-### ⚙️ **Phase 2: Backend REST Server**
-* **FastAPI Setup**: Built endpoint bindings to handle requests asynchronously.
-* **Metadata Schema Reflector**: Dynamically reads table listings using `sqlite_master` catalog queries so the LLM prompt remains updated.
-* **LLM Translator Hook**: Integrates the Groq API key with `llama-3.3-70b-versatile` running at low temperature (`0.1`) to ensure stable, context-aware SQL outputs.
-
-### 🎨 **Phase 3: Responsive Interface UI**
-* **Modern Style Palette**: Implemented glassmorphism layout, modern typography (Outfit + Inter), and a full dark theme.
-* **Interactive Panels**:
-  * **Left Sidebar**: Renders a dynamic tree structure of tables and columns (allowing **double-click to insert** names directly) alongside the session history log.
-  * **Main Canvas**: Split-panel workflow guiding the user from prompt input, to editable SQL editor, to paginated table results.
-
-### 🛡️ **Phase 4: Safeguards & CSV Export**
-* **Read-only Enforcement**: Inspects queries at both API and code helper levels, blocking `DELETE`, `UPDATE`, `INSERT`, `DROP`, or `ALTER` requests.
-* **Troubleshooting Wrapper**: Catches database-level exception codes and translates them to human-readable hints.
-* **CSV Downloader**: Built an in-browser helper to convert table matrices into structured CSV sheets instantly.
 
 ---
 
